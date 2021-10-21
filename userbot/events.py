@@ -78,9 +78,9 @@ def register(**args):
 
                     date = strftime("%Y-%m-%d %H:%M:%S", gmtime())
 
-                    link = "[Support Chat](https://t.me/KensurOT)"
+                    link = "[Support Chat](https://t.me/CheemsBotChat)"
                     text = (
-                        "**USERBOT ERROR REPORT**\n"
+                        "**CHEEMSBOT ERROR REPORT**\n"
                         "If you want to, you can report it"
                         f"- just forward this message to {link}.\n"
                         "I won't log anything except the fact of error and date\n"
@@ -98,12 +98,12 @@ def register(**args):
                         "privacy, you may not report this error if you've any "
                         "confidential data here, no one will see your data if "
                         "you choose not to do so.\n\n"
-                        "--------BEGIN USERBOT TRACEBACK LOG--------"
+                        "--------BEGIN CHEEMSBOT TRACEBACK LOG--------"
                         f"\nDate: {date}\nChat ID: {check.chat_id}"
                         f"\nSender ID: {check.sender_id}\n\nEvent Trigger:\n"
                         f"{check.text}\n\nTraceback info:\n{format_exc()}"
                         f"\n\nError text:\n{exc_info()[1]}"
-                        "\n\n--------END USERBOT TRACEBACK LOG--------"
+                        "\n\n--------END CHEEMSBOT TRACEBACK LOG--------"
                         "\n\n\nLast 10 commits:\n"
                         f"{stdout.decode().strip()}{stderr.decode().strip()}"
                     )
