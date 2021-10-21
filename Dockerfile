@@ -1,4 +1,4 @@
-FROM ashisharmy/cheemsbot:debian
+FROM kenhv/kensurbot:debian
 
 RUN set -ex \
     && git clone -b master https://github.com/ashisharmy/CheemsBot /root/userbot \
