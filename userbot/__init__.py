@@ -116,6 +116,10 @@ ANTI_SPAMBOT_SHOUT = strtobool(os.environ.get("ANTI_SPAMBOT_SHOUT", "False"))
 # Default .alive name
 ALIVE_NAME = os.environ.get("ALIVE_NAME")
 
+# Default .alive logo
+ALIVE_LOGO = os.environ.get(
+    "ALIVE_LOGO") or "https://telegra.ph/file/e08e82bbc9ce4fde7ab6f.jpg")
+
 # Time & Date - Country and Time Zone
 COUNTRY = os.environ.get("COUNTRY")
 TZ_NUMBER = int(os.environ.get("TZ_NUMBER", 1))
@@ -228,7 +232,7 @@ with bot:
 async def update_restart_msg(chat_id, msg_id):
     DEFAULTUSER = ALIVE_NAME or "Set `ALIVE_NAME` ConfigVar!"
     message = (
-        f"**KensurBot v{KENSURBOT_VERSION} is back up and running!**\n\n"
+        f"**CheemsBot v{KENSURBOT_VERSION} is back up and running!**\n\n"
         f"**Telethon:** {version.__version__}\n"
         f"**Python:** {python_version()}\n"
         f"**User:** {DEFAULTUSER}"
