@@ -101,7 +101,7 @@ async def hehehe(event):
             await bot.send_message(chat, "`This inbox has been blessed by my master. Consider yourself lucky.`\n**Increased Stability and Karma** (づ￣ ³￣)づ")
             
 CMD_HELP.update({
-    "nopm":
+    "gmute":
     "`.gmute`\
 \nUsage: Reply .gmute and it will mute that person in pm  \
 \n\n.`ungmute`\
