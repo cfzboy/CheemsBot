@@ -90,6 +90,11 @@ CONSOLE_LOGGER_VERBOSE = strtobool(os.environ.get("CONSOLE_LOGGER_VERBOSE") or "
 # SQL Database URI
 DB_URI = os.environ.get("DATABASE_URL")
 
+# Deezload Credentials
+DEEZER_ARL_TOKEN = os.environ.get("DEEZER_ARL_TOKEN", None)
+DEEZER_EMAIL = os.environ.get("DEEZER_EMAIL", None)
+DEEZER_PASSWORD = os.environ.get("DEEZER_PASSWORD", None)
+
 # OCR API key
 OCR_SPACE_API_KEY = os.environ.get("OCR_SPACE_API_KEY")
 
@@ -155,9 +160,6 @@ TEMP_DOWNLOAD_DIRECTORY = os.environ.get("TMP_DOWNLOAD_DIRECTORY", "./downloads/
 
 # Terminal Alias
 TERM_ALIAS = os.environ.get("TERM_ALIAS")
-
-# Deezloader
-DEEZER_ARL_TOKEN = os.environ.get("DEEZER_ARL_TOKEN")
 
 # Genius Lyrics API
 GENIUS = os.environ.get("GENIUS_ACCESS_TOKEN")
