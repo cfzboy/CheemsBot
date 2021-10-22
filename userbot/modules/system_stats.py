@@ -78,7 +78,7 @@ async def bot_ver(event):
                              "`Revision: "
                              f"{revout}"
                              "` \n"
-                             "`OpenUserBot Version: 7.7.7`")
+                             "`CheemsBot Version: 7.7.7`")
         else:
             await event.edit(
                 "Shame that you don't have Git, you're running v1.0 anyway!")
@@ -137,7 +137,7 @@ async def amireallyalive(alive):
              f"**✦ тєℓєтнση νєяѕιση: {version.__version__}** \n"
              f"**✦ P̳y̳t̳h̳o̳n̳ ̳̳v̳e̳r̳s̳i̳o̳n̳🐍: {python_version()}** \n"
              f"**✦ 𒆜ʍʏ օառɛʀ 𒆜:{DEFAULTUSER}** \n"
-             f"**✦ 𝐑𝐄𝐏𝐎: [ĆĦ€€ΜŞβØŦ](https://github.com/gamerfuckerofficial/CheemsBot)** \n"
+             f"**✦ 𝐑𝐄𝐏𝐎: [ĆĦ€€ΜŞβØŦ](https://github.com/ashisharmy/CheemsBot)** \n"
              f"**✦ [ᑕᕼᗩᑎᑎᗴᒪ](https://t.me/CheemsUserbot): [ᘜ尺ㄖㄩ卩](https://t.me/CheemsBotChat)**")
     if ALIVE_LOGO:
         try:
