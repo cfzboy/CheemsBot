@@ -118,7 +118,7 @@ ALIVE_NAME = os.environ.get("ALIVE_NAME")
 
 # Default .alive logo
 ALIVE_LOGO = os.environ.get(
-    "ALIVE_LOGO") or "https://telegra.ph/file/e08e82bbc9ce4fde7ab6f.jpg")
+    "ALIVE_LOGO") or "https://telegra.ph/file/e08e82bbc9ce4fde7ab6f.jpg"
 
 # Time & Date - Country and Time Zone
 COUNTRY = os.environ.get("COUNTRY")
