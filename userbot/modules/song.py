@@ -467,7 +467,7 @@ async def upload_track(track_location, message):
 
 CMD_HELP.update(
     {
-        "getmusic": ">`.song` <artist - title>"
+        "song": ">`.song` <artist - title>"
         "\nUsage: Finding and uploading song.\n\n"
         ">`.vsong` <artist - title>"
         "\nUsage: Finding and uploading videoclip.\n\n"
