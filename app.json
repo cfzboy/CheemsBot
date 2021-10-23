@@ -105,6 +105,7 @@
     },
     "DEFAULT_BIO": {
       "description": "Default profile bio.",
+      "value": "ĆĦ€€ΜŞβØŦ ƗŽ ØŇŁƗŇ€",
       "required": false
     },
     "G_DRIVE_DATA": {
