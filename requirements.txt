@@ -42,7 +42,7 @@ qrcode
 TgCrypto
 ffmpeg-python
 psutil
-pytgcalls
+py-tgcalls==0.8.1rc1
 wheel
 requests
 search-engine-parser
