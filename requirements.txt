@@ -39,6 +39,11 @@ python-dateutil
 python-dotenv
 pytz
 qrcode
+pyrogram
+pytgcalls
+asyncio
+tgcrypto
+ffmpeg-python
 requests
 search-engine-parser
 speedtest-cli
