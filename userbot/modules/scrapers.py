@@ -12,10 +12,9 @@ import shutil
 import time
 from asyncio import get_event_loop, sleep
 from glob import glob
-from re import findall
-from urllib.error import HTTPError
 from urllib.parse import quote_plus
 
+import asyncurban
 from bs4 import BeautifulSoup
 from emoji import get_emoji_regexp
 from googletrans import LANGUAGES, Translator
@@ -26,7 +25,6 @@ from hachoir.parser import createParser
 from requests import get
 from search_engine_parser import GoogleSearch
 from telethon.tl.types import DocumentAttributeAudio, DocumentAttributeVideo
-from urbandict import define
 from wikipedia import summary
 from wikipedia.exceptions import DisambiguationError, PageError
 from yt_dlp import YoutubeDL
@@ -61,7 +59,7 @@ async def setlang(prog):
 @register(outgoing=True, pattern=r"^\.carbon")
 async def carbon_api(e):
     """A Wrapper for carbon.now.sh"""
-    await e.edit("`Processing...`")
+    await e.edit("**Processing...**")
     CARBON = "https://carbon.now.sh/?l={lang}&code={code}"
     global CARBONLANG
     textx = await e.get_reply_message()
@@ -71,21 +69,31 @@ async def carbon_api(e):
     elif textx:
         pcode = str(textx.message)  # Importing message to module
     code = quote_plus(pcode)  # Converting to urlencoded
-    await e.edit("`Processing...\n25%`")
-    file_path = TEMP_DOWNLOAD_DIRECTORY + "carbon.png"
+    await e.edit("**Processing...\n25%**")
+    dl_path = "./.carbon/"
+    file_path = dl_path + "carbon.png"
     if os.path.isfile(file_path):
         os.remove(file_path)
     url = CARBON.format(code=code, lang=CARBONLANG)
     driver = await chrome()
     driver.get(url)
-    await e.edit("`Processing...\n50%`")
+    await e.edit("**Processing...\n50%**")
+    driver.command_executor._commands["send_command"] = (
+        "POST",
+        "/session/$sessionId/chromium/send_command",
+    )
+    params = {
+        "cmd": "Page.setDownloadBehavior",
+        "params": {"behavior": "allow", "downloadPath": dl_path},
+    }
+    driver.execute("send_command", params)
     driver.find_element_by_css_selector('[data-cy="quick-export-button"]').click()
-    await e.edit("`Processing...\n75%`")
+    await e.edit("**Processing...\n75%**")
     # Waiting for downloading
     while not os.path.isfile(file_path):
         await sleep(0.5)
-    await e.edit("`Processing...\n100%`")
-    await e.edit("`Uploading...`")
+    await e.edit("**Processing...\n100%**")
+    await e.edit("**Uploading...**")
     await e.client.send_file(
         e.chat_id,
         file_path,
@@ -103,30 +111,47 @@ async def carbon_api(e):
     await e.delete()  # Deleting msg
 
 
-@register(outgoing=True, pattern=r"^\.img (.*)")
+@register(outgoing=True, pattern=r"^\.img(?: |$)(\d*)? ?(.*)")
 async def img_sampler(event):
     """For .img command, search and return images matching the query."""
-    await event.edit("`Processing...`")
-    query = event.pattern_match.group(1)
-    lim = findall(r"lim=\d+", query)
-    try:
-        lim = lim[0]
-        lim = lim.replace("lim=", "")
-        query = query.replace("lim=" + lim[0], "")
-    except IndexError:
-        lim = 7
+
+    if event.is_reply and not event.pattern_match.group(2):
+        query = await event.get_reply_message()
+        query = str(query.message)
+    else:
+        query = str(event.pattern_match.group(2))
+
+    if not query:
+        return await event.edit("**Reply to a message or pass a query to search!**")
+
+    await event.edit("**Processing...**")
+
+    if event.pattern_match.group(1) != "":
+        counter = int(event.pattern_match.group(1))
+        if counter > 10:
+            counter = int(10)
+        if counter <= 0:
+            counter = int(1)
+    else:
+        counter = int(3)
+
     response = googleimagesdownload()
 
     # creating list of arguments
     arguments = {
         "keywords": query,
-        "limit": lim,
-        "format": "jpg",
+        "limit": counter,
+        "format": "png",
         "no_directory": "no_directory",
     }
 
-    # passing the arguments to the function
-    paths = response.download(arguments)
+    # if the query contains some special characters, googleimagesdownload errors out
+    # this is a temporary workaround for it (maybe permanent)
+    try:
+        paths = response.download(arguments)
+    except Exception as e:
+        return await event.edit(f"**Error:** `{e}`")
+
     lst = paths[0][query]
     await event.client.send_file(
         await event.client.get_input_entity(event.chat_id), lst
@@ -135,164 +160,176 @@ async def img_sampler(event):
     await event.delete()
 
 
-@register(outgoing=True, pattern=r"^\.currency (.*)")
+@register(outgoing=True, pattern=r"^\.currency ([\d\.]+) ([a-zA-Z]+) ([a-zA-Z]+)")
 async def moni(event):
-    input_str = event.pattern_match.group(1)
-    input_sgra = input_str.split(" ")
-    if len(input_sgra) == 3:
-        try:
-            number = float(input_sgra[0])
-            currency_from = input_sgra[1].upper()
-            currency_to = input_sgra[2].upper()
-            request_url = f"https://api.ratesapi.io/api/latest?base={currency_from}"
-            current_response = get(request_url).json()
-            if currency_to in current_response["rates"]:
-                current_rate = float(current_response["rates"][currency_to])
-                rebmun = round(number * current_rate, 2)
-                await event.edit(f"{number} {currency_from} = {rebmun} {currency_to}")
-            else:
-                await event.edit(
-                    "`This seems to be some alien currency, which I can't convert right now.`"
-                )
-        except Exception as e:
-            await event.edit(str(e))
-    else:
-        return await event.edit("`Invalid syntax.`")
+    c_from_val = float(event.pattern_match.group(1))
+    c_from = (event.pattern_match.group(2)).upper()
+    c_to = (event.pattern_match.group(3)).upper()
+    try:
+        response = get(
+            "https://api.frankfurter.app/latest",
+            params={"from": c_from, "to": c_to},
+        ).json()
+    except Exception:
+        await event.edit("**Error: API is down.**")
+        return
+    if "error" in response:
+        await event.edit(
+            "**This seems to be some alien currency, which I can't convert right now.**"
+        )
+        return
+    c_to_val = round(c_from_val * response["rates"][c_to], 2)
+    await event.edit(f"**{c_from_val} {c_from} = {c_to_val} {c_to}**")
 
 
-@register(outgoing=True, pattern=r"^\.google (.*)")
-async def gsearch(q_event):
+@register(outgoing=True, pattern=r"^\.google(?: |$)(\d*)? ?(.*)")
+async def gsearch(event):
     """For .google command, do a Google search."""
-    match = q_event.pattern_match.group(1)
-    page = findall(r"page=\d+", match)
+
+    if event.is_reply and not event.pattern_match.group(2):
+        match = await event.get_reply_message()
+        match = str(match.message)
+    else:
+        match = str(event.pattern_match.group(2))
+
+    if not match:
+        return await event.edit("**Reply to a message or pass a query to search!**")
+
+    await event.edit("**Processing...**")
+
+    if event.pattern_match.group(1) != "":
+        counter = int(event.pattern_match.group(1))
+        if counter > 10:
+            counter = int(10)
+        if counter <= 0:
+            counter = int(1)
+    else:
+        counter = int(3)
+
+    search_args = (str(match), int(1))
+    gsearch = GoogleSearch()
+
     try:
-        page = page[0]
-        page = page.replace("page=", "")
-        match = match.replace("page=" + page[0], "")
-    except IndexError:
-        page = 1
-    try:
-        search_args = (str(match), int(page))
-        gsearch = GoogleSearch()
         gresults = await gsearch.async_search(*search_args)
-        msg = ""
-        for i in range(5):
-            try:
-                title = gresults["titles"][i]
-                link = gresults["links"][i]
-                desc = gresults["descriptions"][i]
-                msg += f"[{title}]({link})\n`{desc}`\n\n"
-            except IndexError:
-                break
-    except BaseException as g_e:
-        return await q_event.edit(f"**Error : ** `{g_e}`")
-    await q_event.edit(
+    except Exception:
+        return await event.edit(
+            "**Error: Your query could not be found or it was flagged as unusual traffic.**"
+        )
+    msg = ""
+
+    for i in range(counter):
+        try:
+            title = gresults["titles"][i]
+            link = gresults["links"][i]
+            desc = gresults["descriptions"][i]
+            msg += f"[{title}]({link})\n`{desc}`\n\n"
+        except IndexError:
+            break
+
+    await event.edit(
         "**Search Query:**\n`" + match + "`\n\n**Results:**\n" + msg, link_preview=False
     )
 
-    if BOTLOG:
-        await q_event.client.send_message(
-            BOTLOG_CHATID,
-            "Google Search query `" + match + "` was executed successfully",
-        )
 
-
-@register(outgoing=True, pattern=r"^\.wiki (.*)")
+@register(outgoing=True, pattern=r"^\.wiki(?: |$)(.*)")
 async def wiki(wiki_q):
     """For .wiki command, fetch content from Wikipedia."""
-    match = wiki_q.pattern_match.group(1)
+
+    if wiki_q.is_reply and not wiki_q.pattern_match.group(1):
+        match = await wiki_q.get_reply_message()
+        match = str(match.message)
+    else:
+        match = str(wiki_q.pattern_match.group(1))
+
+    if not match:
+        return await wiki_q.edit("**Reply to a message or pass a query to search!**")
+
+    await wiki_q.edit("**Processing...**")
+
     try:
         summary(match)
     except DisambiguationError as error:
-        return await wiki_q.edit(f"Disambiguated page found.\n\n{error}")
+        return await wiki_q.edit(f"**Disambiguated page found.**\n\n`{error}`")
     except PageError as pageerror:
-        return await wiki_q.edit(f"Page not found.\n\n{pageerror}")
+        return await wiki_q.edit(f"**Page not found.**\n\n`{pageerror}`")
     result = summary(match)
     if len(result) >= 4096:
-        file = open("output.txt", "w+")
-        file.write(result)
-        file.close()
+        with open("output.txt", "w+") as file:
+            file.write(result)
         await wiki_q.client.send_file(
             wiki_q.chat_id,
             "output.txt",
             reply_to=wiki_q.id,
-            caption="`Output too large, sending as file`",
+            caption=r"**Output too large, sending as file**",
         )
         if os.path.exists("output.txt"):
             return os.remove("output.txt")
     await wiki_q.edit("**Search:**\n`" + match + "`\n\n**Result:**\n" + result)
-    if BOTLOG:
-        await wiki_q.client.send_message(
-            BOTLOG_CHATID, f"Wiki query `{match}` was executed successfully"
-        )
 
 
-@register(outgoing=True, pattern=r"^\.ud (.*)")
-async def urban_dict(ud_e):
-    """For .ud command, fetch content from Urban Dictionary."""
-    await ud_e.edit("Processing...")
-    query = ud_e.pattern_match.group(1)
-    try:
-        define(query)
-    except HTTPError:
-        return await ud_e.edit(f"Sorry, couldn't find any results for: {query}")
-    mean = define(query)
-    deflen = sum(len(i) for i in mean[0]["def"])
-    exalen = sum(len(i) for i in mean[0]["example"])
-    meanlen = deflen + exalen
-    if int(meanlen) >= 0:
-        if int(meanlen) >= 4096:
-            await ud_e.edit("`Output too large, sending as file.`")
-            file = open("output.txt", "w+")
-            file.write(
-                "Text: "
-                + query
-                + "\n\nMeaning: "
-                + mean[0]["def"]
-                + "\n\n"
-                + "Example: \n"
-                + mean[0]["example"]
-            )
-            file.close()
-            await ud_e.client.send_file(
-                ud_e.chat_id,
-                "output.txt",
-                caption="`Output was too large, sent it as a file.`",
-            )
-            if os.path.exists("output.txt"):
-                os.remove("output.txt")
-            return await ud_e.delete()
-        await ud_e.edit(
-            "Text: **"
-            + query
-            + "**\n\nMeaning: **"
-            + mean[0]["def"]
-            + "**\n\n"
-            + "Example: \n__"
-            + mean[0]["example"]
-            + "__"
-        )
-        if BOTLOG:
-            await ud_e.client.send_message(
-                BOTLOG_CHATID, "ud query `" + query + "` executed successfully."
-            )
+@register(outgoing=True, pattern=r"^\.ud(?: |$)(.*)")
+async def urban_dict(event):
+    """Output the definition of a word from Urban Dictionary"""
+
+    if event.is_reply and not event.pattern_match.group(1):
+        query = await event.get_reply_message()
+        query = str(query.message)
     else:
-        await ud_e.edit("No result found for **" + query + "**")
+        query = str(event.pattern_match.group(1))
+
+    if not query:
+        return await event.edit("**Reply to a message or pass a query to search!**")
+
+    await event.edit("**Processing...**")
+    ud = asyncurban.UrbanDictionary()
+    template = "**Query:** `{}`\n\n**Definition:**\n{}\n\n**Example:**\n__{}__"
+
+    try:
+        definition = await ud.get_word(query)
+    except asyncurban.UrbanException as e:
+        return await event.edit(f"**Error:** `{e}`")
+
+    result = template.format(definition.word, definition.definition, definition.example)
+
+    if len(result) < 4096:
+        return await event.edit(result)
+
+    await event.edit("**Output too large, sending as file...**")
+    with open("output.txt", "w+") as file:
+        file.write(
+            "Query: "
+            + definition.word
+            + "\n\nMeaning: "
+            + definition.definition
+            + "Example: \n"
+            + definition.example
+        )
+    await event.client.send_file(
+        event.chat_id,
+        "output.txt",
+        caption=f"Urban Dictionary's definition of {query}",
+    )
+    if os.path.exists("output.txt"):
+        os.remove("output.txt")
+    return await event.delete()
 
 
 @register(outgoing=True, pattern=r"^\.tts(?: |$)([\s\S]*)")
 async def text_to_speech(query):
     """For .tts command, a wrapper for Google Text-to-Speech."""
-    textx = await query.get_reply_message()
-    message = query.pattern_match.group(1)
-    if message:
-        pass
-    elif textx:
-        message = textx.text
+
+    if query.is_reply and not query.pattern_match.group(1):
+        message = await query.get_reply_message()
+        message = str(message.message)
     else:
+        message = str(query.pattern_match.group(1))
+
+    if not message:
         return await query.edit(
-            "`Give a text or reply to a message for Text-to-Speech!`"
+            "**Give a text or reply to a message for Text-to-Speech!**"
         )
+
+    await query.edit("**Processing...**")
 
     try:
         from userbot.modules.sql_helper.globals import gvarstatus
@@ -308,13 +345,13 @@ async def text_to_speech(query):
         gTTS(message, lang=target_lang)
     except AssertionError:
         return await query.edit(
-            "The text is empty.\n"
+            "**The text is empty.**\n"
             "Nothing left to speak after pre-precessing, tokenizing and cleaning."
         )
     except ValueError:
-        return await query.edit("Language is not supported.")
+        return await query.edit("**Language is not supported.**")
     except RuntimeError:
-        return await query.edit("Error loading the languages dictionary.")
+        return await query.edit("**Error loading the languages dictionary.**")
     tts = gTTS(message, lang=target_lang)
     tts.save("k.mp3")
     with open("k.mp3", "rb") as audio:
@@ -326,11 +363,7 @@ async def text_to_speech(query):
     with open("k.mp3"):
         await query.client.send_file(query.chat_id, "k.mp3", voice_note=True)
         os.remove("k.mp3")
-        if BOTLOG:
-            await query.client.send_message(
-                BOTLOG_CHATID, "Text to Speech executed successfully !"
-            )
-        await query.delete()
+    await query.delete()
 
 
 # kanged from Blank-x ;---;
@@ -340,7 +373,9 @@ async def imdb(e):
         movie_name = e.pattern_match.group(1)
         remove_space = movie_name.split(" ")
         final_name = "+".join(remove_space)
-        page = get("https://www.imdb.com/find?ref_=nv_sr_fn&q=" + final_name + "&s=all")
+        page = get(
+            "https://www.imdb.com/find?ref_=nv_sr_fn&q=r" + final_name + "&s=all"
+        )
         soup = BeautifulSoup(page.content, "lxml")
         odds = soup.findAll("tr", "odd")
         mov_title = odds[0].findNext("td").findNext("td").text
@@ -358,25 +393,19 @@ async def imdb(e):
             mov_details = re.sub(r"\s+", " ", pg)
         else:
             mov_details = ""
-        mov_credits = soup.findAll("div", "credit_summary_item")
-        if len(mov_credits) == 1:
-            director = mov_credits[0].a.text
+        credits = soup.findAll("div", "credit_summary_item")
+        director = credits[0].a.text
+        if len(credits) == 1:
             writer = "Not available"
             stars = "Not available"
-        elif len(mov_credits) > 2:
-            director = mov_credits[0].a.text
-            writer = mov_credits[1].a.text
-            actors = []
-            for x in mov_credits[2].findAll("a"):
-                actors.append(x.text)
+        elif len(credits) > 2:
+            writer = credits[1].a.text
+            actors = [x.text for x in credits[2].findAll("a")]
             actors.pop()
             stars = actors[0] + "," + actors[1] + "," + actors[2]
         else:
-            director = mov_credits[0].a.text
             writer = "Not available"
-            actors = []
-            for x in mov_credits[1].findAll("a"):
-                actors.append(x.text)
+            actors = [x.text for x in credits[1].findAll("a")]
             actors.pop()
             stars = actors[0] + "," + actors[1] + "," + actors[2]
         if soup.find("div", "inline canwrap"):
@@ -431,20 +460,25 @@ async def imdb(e):
 @register(outgoing=True, pattern=r"^\.trt(?: |$)([\s\S]*)")
 async def translateme(trans):
     """For .trt command, translate the given text using Google Translate."""
-    translator = Translator()
-    textx = await trans.get_reply_message()
-    message = trans.pattern_match.group(1)
-    if message:
-        pass
-    elif textx:
-        message = textx.text
+
+    if trans.is_reply and not trans.pattern_match.group(1):
+        message = await trans.get_reply_message()
+        message = str(message.message)
     else:
-        return await trans.edit("`Give a text or reply to a message to translate!`")
+        message = str(trans.pattern_match.group(1))
+
+    if not message:
+        return await trans.edit(
+            "**Give some text or reply to a message to translate!**"
+        )
+
+    await trans.edit("**Processing...**")
+    translator = Translator()
 
     try:
         from userbot.modules.sql_helper.globals import gvarstatus
     except AttributeError:
-        return await trans.edit("`Running on Non-SQL mode!`")
+        return await trans.edit("**Running on Non-SQL mode!**")
 
     if gvarstatus("trt_lang") is not None:
         target_lang = str(gvarstatus("trt_lang"))
@@ -454,21 +488,19 @@ async def translateme(trans):
     try:
         reply_text = translator.translate(deEmojify(message), dest=target_lang)
     except ValueError:
-        return await trans.edit("Invalid destination language.")
-
-    source_lan = LANGUAGES[f"{reply_text.src.lower()}"]
-    transl_lan = LANGUAGES[f"{reply_text.dest.lower()}"]
-    reply_text = f"From **{source_lan.title()}**\nTo **{transl_lan.title()}:**\n\n{reply_text.text}"
-
-    await trans.edit(reply_text)
-    if BOTLOG:
-        await trans.client.send_message(
-            BOTLOG_CHATID,
-            f"Translated some {source_lan.title()} stuff to {transl_lan.title()} just now.",
+        return await trans.edit(
+            "**Invalid language selected, use **`.lang trt <language code>`**.**"
         )
 
+    source_lang = LANGUAGES.get(reply_text.src).title()  # type: ignore
+    target_lang = LANGUAGES.get(target_lang).title()
 
-@register(pattern=".lang (trt|tts) (.*)", outgoing=True)
+    reply_text = f"From: **{source_lang}**\nTo: **{target_lang}**\n\n{reply_text.text}"  # type: ignore
+
+    await trans.edit(reply_text)
+
+
+@register(pattern=r"\.lang (trt|tts) (.*)", outgoing=True)
 async def lang(value):
     """For .lang command, change the default langauge of userbot scrapers."""
     util = value.pattern_match.group(1).lower()
@@ -484,7 +516,7 @@ async def lang(value):
 
         if arg not in LANGUAGES:
             return await value.edit(
-                f"`Invalid Language code !!`\n`Available language codes for TRT`:\n\n`{LANGUAGES}`"
+                f"**Invalid language code!**\nAvailable language codes:\n\n`{LANGUAGES}`"
             )
 
         if gvarstatus("trt_lang"):
@@ -498,7 +530,7 @@ async def lang(value):
 
         if arg not in tts_langs():
             return await value.edit(
-                f"`Invalid Language code !!`\n`Available language codes for TTS`:\n\n`{tts_langs()}`"
+                f"**Invalid language code!**\nAvailable language codes:\n\n`{tts_langs()}`"
             )
 
         if gvarstatus("tts_lang"):
@@ -513,9 +545,20 @@ async def lang(value):
         )
 
 
-@register(outgoing=True, pattern=r"^\.yt (\d*) *(.*)")
+@register(outgoing=True, pattern=r"^\.yt(?: |$)(\d*)? ?(.*)")
 async def yt_search(event):
     """For .yt command, do a YouTube search from Telegram."""
+
+    if event.is_reply and not event.pattern_match.group(2):
+        query = await event.get_reply_message()
+        query = str(query.message)
+    else:
+        query = str(event.pattern_match.group(2))
+
+    if not query:
+        return await event.edit("**Reply to a message or pass a query to search!**")
+
+    await event.edit("**Processing...**")
 
     if event.pattern_match.group(1) != "":
         counter = int(event.pattern_match.group(1))
@@ -526,18 +569,10 @@ async def yt_search(event):
     else:
         counter = int(3)
 
-    query = event.pattern_match.group(2)
-
-    if not query:
-        return await event.edit("`Enter a query to search.`")
-    await event.edit("`Processing...`")
-
     try:
         results = json.loads(YoutubeSearch(query, max_results=counter).to_json())
     except KeyError:
-        return await event.edit(
-            "`Youtube Search gone retard.\nCan't search this query!`"
-        )
+        return await event.edit("**YouTube gone retard.\nCan't search this query!**")
 
     output = f"**Search Query:**\n`{query}`\n\n**Results:**\n"
 
@@ -555,7 +590,7 @@ async def yt_search(event):
     await event.edit(output, link_preview=False)
 
 
-@register(outgoing=True, pattern=r".rip(audio|video( \d{0,4})?) (.*)")
+@register(outgoing=True, pattern=r"\.r(a|v( \d{0,4})?) (.*)")
 async def download_video(v_url):
     """For .rip command, download media from YouTube and many other sites."""
     dl_type = v_url.pattern_match.group(1).lower()
@@ -563,12 +598,12 @@ async def download_video(v_url):
     reso = reso.strip() if reso else None
     url = v_url.pattern_match.group(3)
 
-    await v_url.edit("`Preparing to download...`")
+    await v_url.edit("**Preparing to download...**")
     s_time = time.time()
     video = False
     audio = False
 
-    if "audio" in dl_type:
+    if "a" in dl_type:
         opts = {
             "format": "bestaudio",
             "addmetadata": True,
@@ -592,7 +627,7 @@ async def download_video(v_url):
         }
         audio = True
 
-    elif "video" in dl_type:
+    else:
         quality = (
             f"bestvideo[height<={reso}]+bestaudio/best[height<={reso}]"
             if reso
@@ -614,35 +649,35 @@ async def download_video(v_url):
         video = True
 
     try:
-        await v_url.edit("`Fetching data, please wait..`")
+        await v_url.edit("**Fetching data, please wait...**")
         with YoutubeDL(opts) as rip:
             rip_data = rip.extract_info(url)
     except DownloadError as DE:
-        return await v_url.edit(f"`{str(DE)}`")
+        return await v_url.edit(f"**{str(DE)}**")
     except ContentTooShortError:
-        return await v_url.edit("`The download content was too short.`")
+        return await v_url.edit("**The download content was too short.**")
     except GeoRestrictedError:
         return await v_url.edit(
-            "`Video is not available from your geographic location "
-            "due to geographic restrictions imposed by a website.`"
+            "**Video is not available from your geographic location "
+            "due to geographic restrictions imposed by a website.**"
         )
     except MaxDownloadsReached:
-        return await v_url.edit("`Max-downloads limit has been reached.`")
+        return await v_url.edit("**Max-downloads limit has been reached.**")
     except PostProcessingError:
-        return await v_url.edit("`There was an error during post processing.`")
+        return await v_url.edit("**There was an error during post processing.**")
     except UnavailableVideoError:
-        return await v_url.edit("`Media is not available in the requested format.`")
+        return await v_url.edit("**Media is not available in the requested format.**")
     except XAttrMetadataError as XAME:
-        return await v_url.edit(f"`{XAME.code}: {XAME.msg}\n{XAME.reason}`")
+        return await v_url.edit(f"**{XAME.code}: {XAME.msg}\n{XAME.reason}**")
     except ExtractorError:
-        return await v_url.edit("`There was an error during info extraction.`")
+        return await v_url.edit("**There was an error during info extraction.**")
     except Exception as e:
-        return await v_url.edit(f"{str(type(e)): {str(e)}}")
+        return await v_url.edit(f"**{str(type(e)): {str(e)}}**")
     c_time = time.time()
     if audio:
         await v_url.edit(
-            f"`Preparing to upload song:`\n**{rip_data.get('title')}**"
-            f"\nby **{rip_data.get('uploader')}**"
+            f"**Preparing to upload song:**\n`{rip_data.get('title')}`"
+            f"\nby `{rip_data.get('uploader')}`"
         )
         f_name = glob(os.path.join(TEMP_DOWNLOAD_DIRECTORY, str(s_time), "*.mp3"))[0]
         with open(f_name, "rb") as f:
@@ -650,9 +685,14 @@ async def download_video(v_url):
                 client=v_url.client,
                 file=f,
                 name=f_name,
-                progress_callback=lambda d, t: get_event_loop().create_task(
+                progress_callback=lambda d, t: get_event_loop().create_task(  # type: ignore
                     progress(
-                        d, t, v_url, c_time, "Uploading..", f"{rip_data['title']}.mp3"
+                        d,
+                        t,
+                        v_url,
+                        c_time,
+                        "**Uploading...**",
+                        f"{rip_data['title']}.mp3",
                     )
                 ),
             )
@@ -682,8 +722,8 @@ async def download_video(v_url):
         await v_url.delete()
     elif video:
         await v_url.edit(
-            f"`Preparing to upload video:`\n**{rip_data.get('title')}**"
-            f"\nby **{rip_data.get('uploader')}**"
+            f"**Preparing to upload video:**\n`{rip_data.get('title')}`"
+            f"\nby `{rip_data.get('uploader')}`"
         )
         f_path = glob(os.path.join(TEMP_DOWNLOAD_DIRECTORY, str(s_time), "*"))[0]
         # Noob way to convert from .mkv to .mp4
@@ -697,8 +737,8 @@ async def download_video(v_url):
                 client=v_url.client,
                 file=f,
                 name=f_name,
-                progress_callback=lambda d, t: get_event_loop().create_task(
-                    progress(d, t, v_url, c_time, "Uploading..", f_name)
+                progress_callback=lambda d, t: get_event_loop().create_task(  # type: ignore
+                    progress(d, t, v_url, c_time, "**Uploading...**", f_name)
                 ),
             )
         thumb_image = await get_video_thumb(f_path, "thumb.png")
@@ -727,7 +767,7 @@ async def download_video(v_url):
             ],
             caption=f"[{rip_data.get('title')}]({url})",
         )
-        os.remove(thumb_image)
+        os.remove(str(thumb_image))
         await v_url.delete()
 
 
@@ -738,30 +778,33 @@ def deEmojify(inputString):
 
 CMD_HELP.update(
     {
-        "img": ">`.img <search_query>`"
-        "\nUsage: Does an image search on Google and shows 5 images.",
+        "img": ">`.img [count] <query> [or reply]`"
+        "\nUsage: Does an image search on Google."
+        "\nCan specify the number of results needed (default is 3).",
         "currency": ">`.currency <amount> <from> <to>`"
         "\nUsage: Converts various currencies for you.",
         "carbon": ">`.carbon <text> [or reply]`"
         "\nUsage: Beautify your code using carbon.now.sh\n"
         "Use .crblang <text> to set language for your code.",
-        "google": ">`.google <query>`" "\nUsage: Does a search on Google.",
-        "wiki": ">`.wiki <query>`" "\nUsage: Does a search on Wikipedia.",
-        "ud": ">`.ud <query>`" "\nUsage: Does a search on Urban Dictionary.",
+        "google": ">`.google [count] <query> [or reply]`"
+        "\nUsage: Does a search on Google."
+        "\nCan specify the number of results needed (default is 3).",
+        "wiki": ">`.wiki <query> [or reply]`" "\nUsage: Does a search on Wikipedia.",
+        "ud": ">`.ud <query> [or reply]`" "\nUsage: Does a search on Urban Dictionary.",
         "tts": ">`.tts <text> [or reply]`"
         "\nUsage: Translates text to speech for the language which is set."
         "\nUse >`.lang tts <language code>` to set language for tts. (Default is English.)",
         "trt": ">`.trt <text> [or reply]`"
         "\nUsage: Translates text to the language which is set."
         "\nUse >`.lang trt <language code>` to set language for trt. (Default is English)",
-        "yt": ">`.yt` `<count> <query>`"
+        "yt": ">`.yt [count] <query> [or reply]`"
         "\nUsage: Does a YouTube search."
         "\nCan specify the number of results needed (default is 3).",
         "imdb": ">`.imdb <movie-name>`" "\nUsage: Shows movie info and other stuff.",
-        "rip": ">`.ripaudio <url>`"
+        "rip": ">`.ra <url>`"
         "\nUsage: Download videos from YouTube and convert to audio "
-        "\n\n>`.ripvideo <quality> <url>` (quality is optional)"
-        "\nQuality examples : `144` `240` `360` `480` `720` `1080` `2160`"
+        "\n\n>`.rv <quality> <url>` (quality is optional)"
+        "\nQuality: `144` `240` `360` `480` `720` `1080` `2160`"
         "\nUsage: Download videos from YouTube"
         "\n\n[Other supported sites](https://ytdl-org.github.io/youtube-dl/supportedsites.html)",
     }
