@@ -1,39 +1,72 @@
-# Copyright (C) 2021 KenHV
+# Copyright (C) 2019 The Raphielscape Company LLC.
+#
+# Licensed under the Raphielscape Public License, Version 1.d (the "License");
+# you may not use this file except in compliance with the License.
+#
+"""Userbot module containing commands for interacting with dogbin(https://del.dog)"""
 
-from requests import post
-from telethon.tl.types import MessageMediaWebPage
+import os
 
-from userbot import CMD_HELP
+from userbot import CMD_HELP, TEMP_DOWNLOAD_DIRECTORY
 from userbot.events import register
+from userbot.utils.pastebin import PasteBin
 
 
-@register(outgoing=True, pattern=r"^\.paste(?:\s|$)([\s\S]*)")
-async def paste(event):
-    """Pastes given text to Katb.in"""
-    await event.edit("**Processing...**")
+@register(outgoing=True, pattern=r"^\.paste(?: (-d|-n|-h|-k)|$)?(?: ([\s\S]+)|$)")
+async def paste(pstl):
+    """For .paste command, pastes the text directly to a pastebin."""
+    service = pstl.pattern_match.group(1)
+    match = pstl.pattern_match.group(2)
+    reply_id = pstl.reply_to_msg_id
 
-    if event.is_reply:
-        reply = await event.get_reply_message()
-        if reply.media and not isinstance(reply.media, MessageMediaWebPage):
-            return await event.edit("**Reply to some text!**")
-        message = reply.message
+    if not (match or reply_id):
+        return await pstl.edit("`Elon Musk said I cannot paste void.`")
 
-    elif event.pattern_match.group(1).strip():
-        message = event.pattern_match.group(1).strip()
+    if match:
+        message = match.strip()
+    elif reply_id:
+        message = await pstl.get_reply_message()
+        if message.media:
+            downloaded_file_name = await pstl.client.download_media(
+                message,
+                TEMP_DOWNLOAD_DIRECTORY,
+            )
+            m_list = None
+            with open(downloaded_file_name, "rb") as fd:
+                m_list = fd.readlines()
+            message = ""
+            for m in m_list:
+                message += m.decode("UTF-8")
+            os.remove(downloaded_file_name)
+        else:
+            message = message.message
 
-    else:
-        return await event.edit("**Read** `.help paste`**.**")
+    await pstl.edit("`Pasting text . . .`")
+    async with PasteBin(message) as client:
+        if service:
+            service = service.strip()
+            if service not in ["-d", "-n", "-h", "-k"]:
+                return await pstl.edit("Invalid flag")
+            await client(client.service_match[service])
+        else:
+            await client.post()
 
-    response = post("https://api.katb.in/api/paste", json={"content": message}).json()
+        if client:
+            reply_text = (
+                "`Pasted successfully!`\n\n"
+                f"[URL]({client.link})\n"
+                f"[View RAW]({client.raw_link})"
+            )
+        else:
+            reply_text = "`Failed to reach Pastebin Service`"
 
-    if response["msg"] == "Successfully created paste":
-        await event.edit(
-            f"**Pasted successfully:** [Katb.in](https://katb.in/{response['paste_id']})\n"
-        )
-    else:
-        await event.edit("**Katb.in seems to be down.**")
+    await pstl.edit(reply_text, link_preview=False)
 
 
 CMD_HELP.update(
-    {"paste": ">`.paste` <text/reply>" "\nUsage: Pastes given text to Katb.in."}
+    {
+        "paste": "`.paste` <text/reply>"
+        "\nUsage: Create a paste to a pastebin service flags['-d', '-n', '-h', '-k']"
+        "\n\n -d -> Dogbin\n-n -> Nekobin\n-h -> Hastebin\n-k -> Katbin"
+    }
 )
