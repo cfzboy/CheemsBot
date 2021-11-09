@@ -27,8 +27,8 @@ from search_engine_parser import GoogleSearch
 from telethon.tl.types import DocumentAttributeAudio, DocumentAttributeVideo
 from wikipedia import summary
 from wikipedia.exceptions import DisambiguationError, PageError
-from youtube_dl import YoutubeDL
-from youtube_dl.utils import (
+from yt-dlp import YoutubeDL
+from yt-dlp.utils import (
     ContentTooShortError,
     DownloadError,
     ExtractorError,
