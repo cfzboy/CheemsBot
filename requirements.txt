@@ -44,7 +44,6 @@ search-engine-parser
 speedtest-cli
 sqlalchemy==1.3.23
 telegraph
-urbandict
 telethon
 telethon-session-sqlalchemy
 telethon-tgcrypto
