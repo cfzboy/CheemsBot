@@ -1,4 +1,4 @@
-FROM kenhv/kensurbot:debian
+
 
 RUN pip3 install --upgrade pip 
 RUN pip3 install --no-cache-dir --upgrade --requirement requirements.txt
