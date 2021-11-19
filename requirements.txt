@@ -36,6 +36,8 @@ pylast
 py-tgcalls==0.8.1
 pySmartDL
 python-barcode
+htmlwebshot
+deezloader
 python-dateutil
 python-dotenv
 pytz
