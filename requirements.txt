@@ -33,6 +33,7 @@ pybase64
 pyfiglet
 PyGithub
 pylast
+py-tgcalls==0.8.1
 pySmartDL
 python-barcode
 python-dateutil
@@ -47,6 +48,9 @@ telegraph
 telethon
 telethon-session-sqlalchemy
 telethon-tgcrypto
+youtube-search-python==1.4.9
 wikipedia
-yt-dlp
+youtube-dl
+ffmpeg-python
+git+https://github.com/yt-dlp/yt-dlp@master
 youtube_search
