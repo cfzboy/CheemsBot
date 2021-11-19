@@ -7,5 +7,5 @@ RUN set -ex \
     && chmod 777 /root/userbot
 
 WORKDIR /root/userbot/
-RUN pip3 install -U -r requirements.txt
+
 CMD ["python3", "-m", "userbot"]
