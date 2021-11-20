@@ -37,6 +37,7 @@ py-tgcalls==0.8.1
 pySmartDL
 python-barcode
 htmlwebshot
+html_telegraph_poster
 deezloader
 python-dateutil
 python-dotenv
