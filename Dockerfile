@@ -1,4 +1,4 @@
-FROM gamerfuckerofficial/cheemsbot:debian
+FROM gamerfuckerofficial/cheemsbot:buster
 
 RUN pip3 install --upgrade pip 
 RUN set -ex \
