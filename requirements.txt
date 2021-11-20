@@ -49,4 +49,5 @@ telethon-session-sqlalchemy
 telethon-tgcrypto
 wikipedia
 yt-dlp
+youtube-dl
 youtube_search
