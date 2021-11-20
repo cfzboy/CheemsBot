@@ -172,7 +172,7 @@ GENIUS = os.environ.get("GENIUS_ACCESS_TOKEN")
 USR_TOKEN = os.environ.get("USR_TOKEN_UPTOBOX")
 
 # KensurBot version
-KENSURBOT_VERSION = "1.2"
+CHEEMSBOT_VERSION = "1.2"
 
 
 def shutdown_bot(*_):
@@ -232,7 +232,7 @@ with bot:
 async def update_restart_msg(chat_id, msg_id):
     DEFAULTUSER = ALIVE_NAME or "Set `ALIVE_NAME` ConfigVar!"
     message = (
-        f"**CheemsBot v{KENSURBOT_VERSION} is back up and running!**\n\n"
+        f"**CheemsBot v{CHEEMSBOT_VERSION} is back up and running!**\n\n"
         f"**Telethon:** {version.__version__}\n"
         f"**Python:** {python_version()}\n"
         f"**User:** {DEFAULTUSER}"
