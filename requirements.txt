@@ -50,7 +50,6 @@ lottie
 lxml
 lyricsgenius
 htmlwebshot
-html_telegraph_poster
 deezloader
 markdown
 motor
@@ -78,8 +77,6 @@ pytz
 qrcode
 rarfile
 randomstuff.py
-ffmpeg-python
-git+https://github.com/yt-dlp/yt-dlp@master
 youtube_search
 regex
 requests
