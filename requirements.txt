@@ -25,7 +25,6 @@ git+https://github.com/yt-dlp/yt-dlp@master
 gitpython
 glitch_this
 google_images_download
-google-api-python-client
 google-auth-httplib2
 google-auth-oauthlib
 google_trans_new
@@ -50,7 +49,6 @@ lottie
 lxml
 lyricsgenius
 htmlwebshot
-deezloader
 markdown
 motor
 natsort
