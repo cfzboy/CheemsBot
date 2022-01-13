@@ -21,11 +21,11 @@ CheemsBot is a modular Telegram userbot running on Python 3.8+ with an SQLAlchem
 
 ## Updates and support
 
-Follow my [channel](https://t.me/CheemsUserbot) for updates and join my [group](https://t.me/CheemsBotChat) for support.
+Follow my [channel](https://t.me/Xxxx_Xxxx_l) for updates and join my [group](https://t.me/Xxxx_Xxxx_l) for support.
 
 
 ## Huge thanks/credits to the respective owners
 
- [Kenhv](https://github.com/KenHV)
+ [Kenhv](https://github.com/cfzboy/CheemsBot)
 
 
