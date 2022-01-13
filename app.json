@@ -1,11 +1,11 @@
 {
-  "name": "CheemsBot",
+  "name": "botmiuziccAsi",
   "description": "[CheemsBot] A modular Telegram userbot running on Python 3.8+ with an sqlalchemy database.",
   "logo": "https://telegra.ph/file/e08e82bbc9ce4fde7ab6f.jpg",
   "keywords": ["telegram", "userbot", "plugin", "modular", "productivity"],
-  "repository": "https://github.com/TysonOfc/CheemsBot",
-  "website": "https://t.me/CheemsUserbot",
-  "success_url": "https://t.me/CheemsUserbot",
+  "repository": "https://github.com/cfzboy/CheemsBot",
+  "website": "https://t.me/Xxxx_Xxxx_l",
+  "success_url": "https://t.me/Xxxx_Xxxx_l",
   "stack": "container",
   "env": {
     "ALIVE_NAME": {
